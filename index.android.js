@@ -1,127 +1,157 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- */
-'use strict';
-
 var React = require('react-native');
-var HTMLView = require('react-native-htmlview')
+var MK = require('react-native-material-kit');
+var appStyles = require('./styles');
 var DrawerLayout = require('react-native-drawer-layout');
-var TouchableHighlight = require('react-native-material-button');
-var Button = require('react-native-material-button');
-var Cards = require('./cards');
-var Icon = require('react-native-vector-icons/Entypo')
 
 var {
-  AppRegistry,
   StyleSheet,
-  View,
-  TouchableHighlight,
-  TextInput,
-  ListView,
   Text,
+  View,
+  DrawerLayoutAndroid,
+  ListView,
+  Image,
   Navigator,
-  ScrollView
+  TouchableOpacity,
+  TouchableHighlight,
+  ScrollView,
+  AppRegistry
 } = React;
 
-var Home = React.createClass({
+var {
+  MKButton,
+  MKColor,
+  MKIconToggle,
+  MKCardStyles
+} = MK;
 
-  getInitialState() {
-    return {};
-  },
-
-  render: function() {
-  var navigationView = (
-    <View style={[styles.container, {backgroundColor: '#000000'}]}>
-    <TouchableHighlight onPress={() => {
-       this.props.navigator.push({
-         title: 'Home',
-         component: Home,
-       });
-     }}>
-      <Text style={styles.block}>Home</Text>
-      </TouchableHighlight>
-      <TouchableHighlight onPress={() => this.drawer.closeDrawer()}>
-        <Text style={styles.block}>Close drawer</Text>
-      </TouchableHighlight>
-    </View>
-  );
-
-  return (
-      <ScrollView style={styles.list}
-                  contentContainerStyle={styles.container}>
-      <View style={styles.container}>
-      <Icon.Button name='book' backgroundColor='#ffffff'>
-       <Text onPress={() => {
-          this.props.navigator.push({
-            title: 'Cards',
-            component: Cards,
-          });
-        }}>Word4U2Day</Text>
-      </Icon.Button>
-      </View>
-       </ScrollView>
-  );
- },
-});
-
-var benactive = React.createClass({
-  _renderScene: function (route, navigator) {
-    switch (route.name) {
-      case 'benactive':
-        return <Home navigator={navigator}/>;
-      default:
-        return (
-          <route.component/>
-        );
-      // default:
-      //   return (
-      //     <View style={{flex: 1}}>
-      //       <ToolbarAndroid actions={[]}
-      //         title='Cards'
-      //         navIcon={require('image!ic_back')}
-      //         onIconClicked={navigator.pop}
-      //         style={styles.toolbar}
-      //       />
-      //       <route.component/>
-      //     </View>
-      //   );
-    }
-  },
-
-  render: function () {
-    return (
-      <Navigator
-        initialRoute={{name: 'benactive'}}
-        renderScene={this._renderScene}
-        />
-    );
-  },
-});
-
-var styles = StyleSheet.create({
+var styles = Object.assign(appStyles, StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#000000'
-  },
-  block: {
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-    color: 'white'
+    padding: 50
   },
   blockText: {
     marginBottom: 5,
   },
-  welcome: {
-    alignItems: 'center',
-  },
   inputField: {
-    backgroundColor: '#F2F2F2',
+    backgroundColor: '#000000',
     height: 40,
   },
+  welcome: {
+    fontSize: 20,
+    textAlign: 'left',
+    margin: 10,
+  },
+}));
+
+var benactive = React.createClass({
+
+  getInitialState: function() {
+    var ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2});
+    return {
+      dataSource: ds.cloneWithRows(['Read', 'Night Mode', 'Change Font', 'Settings', 'This', 'Is', 'A', 'Test']),
+      word4u: null,
+    };
+  },
+
+  componentDidMount: function() {
+    this.fetchData();
+  },
+
+  fetchData: function() {
+    fetch('http://manage.only5c.xyz/output.json')
+      .then((response) => response.json())
+      .then((responseData) => {
+        this.setState({
+          word4u: responseData,
+        });
+      })
+      .done();
+  },
+
+  render: function() {
+
+    if (!this.state.word4u) {
+      return this.renderLoadingView();
+    }
+
+    return this.renderWord(this.state.word4u);
+
+    return (
+        <DrawerLayoutAndroid
+          renderNavigationView={() => navigationView }>
+        </DrawerLayoutAndroid>
+    );
+  },
+
+  renderWord: function(word) {
+
+    var navigationView = (
+      <View style={styles.container}>
+        <Image
+          style={styles.thumbnail}
+          source={{uri: 'https://source.unsplash.com/category/nature/1600x900'}}
+        />
+        <ListView
+        dataSource={this.state.dataSource}
+        renderRow={this._renderRow}
+        style={styles.listView}
+      />
+      </View>
+    );
+
+    return (
+      <ScrollView
+          renderNavigationView={() => navigationView }
+          automaticallyAdjustContentInsets={false}
+          onScroll={() => { console.log('onScroll!'); }}
+          scrollEventThrottle={200}
+          style={styles.scrollView}>
+        <View style={styles.container}>
+          <View style={MKCardStyles.card}>
+            <Text style={MKCardStyles.title}>{word.title}</Text>
+            <View  // TextView padding not handled well on Android https://github.com/facebook/react-native/issues/3233
+             style={{
+               padding : 30,
+             }}
+             >
+             <View style={styles.container}>
+             <Text style={MKCardStyles.row}>{word.verse}</Text>
+            <Text style={[MKCardStyles.content, {padding:5}]}>{word.content}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
+    );
+  },
+
+  renderLoadingView: function() {
+    return (
+      <View style={styles.container}>
+        <Text>
+          Loading Word 4 U 2day...
+        </Text>
+      </View>
+    );
+  },
+
+  _renderRow: function(rowData: string, sectionID: number, rowID: number) {
+    return (
+      <TouchableHighlight onPress={() => this._pressRow(rowID)}>
+        <View>
+          <View style={styles.row}>
+            <Image style={styles.thumb} source={{uri:'https://source.unsplash.com/category/nature/50x50' }} />
+            <Text style={styles.text}>
+              {rowData}
+            </Text>
+          </View>
+        </View>
+      </TouchableHighlight>
+    );
+  },
+
 });
 
 AppRegistry.registerComponent('benactive', () => benactive);
